@@ -1,0 +1,25 @@
+# Dependencies
+**/node_modules
+**/package-lock.json
+
+# Environment files (s'ils existent)
+.env
+*.env
+
+# Docker volumes (ne pas versionner les données)
+db_data/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo

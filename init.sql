@@ -1,0 +1,8 @@
+USE formulaire_db;
+CREATE TABLE IF NOT EXISTS contacts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    identifiant VARCHAR(50) NOT NULL,
+    nom VARCHAR(100) NOT NULL,
+    poste VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
