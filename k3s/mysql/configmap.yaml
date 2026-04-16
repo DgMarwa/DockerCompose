@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-initdb
+  namespace: app
+data:
+  init.sql: |
+    -- Colle ici le contenu de ton init.sql
+    -- CREATE TABLE exemple (id INT PRIMARY KEY);

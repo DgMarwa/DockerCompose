@@ -1,7 +1,8 @@
 # Build de l'application React
-FROM node:18-alpine AS build
+FROM node:18-bullseye-slim AS build
 WORKDIR /app
 COPY package*.json ./
+ENV CI=false
 RUN npm install
 COPY . .
 RUN npm run build
