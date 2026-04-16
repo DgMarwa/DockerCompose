@@ -5,34 +5,33 @@ Ce projet met en place une application **3-tiers** complète avec :
 - **Backend** : API Node.js/Express
 - **Base de données** : MySQL
 
-L'ensemble est conteneurisé avec **Docker Compose** et utilise deux réseaux isolés :
-- `frontend-net` : relie le frontend et le backend
-- `backend-net` : relie le backend et la base de données
+L'ensemble est conteneurisé avec **Docker Compose** et déployable sur **K3s (Kubernetes léger)**.
+
+---
 
 ## 🏗️ Architecture
-
-```
 [ Navigateur ] ←→ [ Frontend (Nginx) ] ←→ [ Backend (Node.js) ] ←→ [ MySQL ]
-                        ⬆️                         ⬆️
-                    frontend-net               backend-net
-```
+⬆️                         ⬆️
+frontend-net               backend-net
+
+---
 
 ## 🛠️ Technologies utilisées
 
 - **Frontend** : React, Nginx
 - **Backend** : Node.js, Express, mysql2, cors, body-parser
 - **Base de données** : MySQL 8.0
-- **Orchestration** : Docker, Docker Compose
+- **Conteneurisation** : Docker, Docker Compose
+- **Orchestration** : K3s (Kubernetes)
+
+---
 
 ## 📁 Structure du projet
-
-```
 Docker-compose/
 ├── backend/
 │   ├── Dockerfile
 │   ├── package.json
-│   ├── server.js
-│   └── (autres fichiers éventuels)
+│   └── server.js
 ├── frontend/
 │   ├── Dockerfile
 │   ├── nginx.conf
@@ -43,9 +42,22 @@ Docker-compose/
 │       │   └── Formulaire.js
 │       ├── App.js
 │       └── index.js
+├── k3s/
+│   ├── namespace.yaml
+│   ├── secret.yaml
+│   ├── ingress.yaml
+│   ├── mysql/
+│   │   ├── pvc.yaml
+│   │   ├── configmap.yaml
+│   │   └── deployment.yaml
+│   ├── backend/
+│   │   └── deployment.yaml
+│   └── frontend/
+│       └── deployment.yaml
 ├── docker-compose.yml
-└── init.sql (optionnel, pour initialiser la BDD)
-```
+└── init.sql
+
+---
 
 ## ✅ Prérequis
 
@@ -58,68 +70,153 @@ docker --version
 docker-compose --version
 ```
 
-## 🚀 Lancer l'application
+---
 
-1. **Clonez ou placez-vous** dans le dossier contenant le `docker-compose.yml`.
+## 🐳 Déploiement avec Docker Compose
 
-2. **Construisez et démarrez les conteneurs** :
-   ```bash
+1. **Construisez et démarrez les conteneurs** :
+```bash
    docker-compose up -d --build
-   ```
+```
 
-   Cette commande va :
-   - Créer les images Docker pour le frontend et le backend
-   - Télécharger l'image MySQL si nécessaire
-   - Créer les réseaux `frontend-net` et `backend-net`
-   - Démarrer les conteneurs `db`, `backend`, `frontend`
-
-3. **Vérifiez que tous les conteneurs sont bien démarrés** :
-   ```bash
+2. **Vérifiez que tous les conteneurs sont bien démarrés** :
+```bash
    docker-compose ps
-   ```
+```
 
-   Vous devriez voir les trois services avec l'état `Up`.
-
-## 🌐 Accès aux services
+### 🌐 Accès aux services
 
 - **Frontend** : [http://localhost:3000](http://localhost:3000)
-- **Backend (API)** : accessible uniquement via le réseau interne (pas exposé sur l'hôte)
-- **Base de données** : accessible uniquement depuis le backend (non exposée)
+- **Backend (API)** : accessible uniquement via le réseau interne
+- **Base de données** : accessible uniquement depuis le backend
+
+### 🛑 Arrêt et nettoyage
+
+```bash
+# Arrêter les conteneurs
+docker-compose stop
+
+# Arrêter et supprimer les conteneurs
+docker-compose down
+
+# Supprimer également les volumes
+docker-compose down -v
+```
+
+---
+
+## ☸️ Déploiement avec K3s
+
+### Prérequis
+
+- **K3s** installé sur la VM
+- **kubectl** configuré
+- Images Docker pushées sur Docker Hub
+
+### 1. Configurer kubectl
+
+```bash
+mkdir -p ~/.kube
+sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+sudo chown $(id -u):$(id -g) ~/.kube/config
+export KUBECONFIG=~/.kube/config
+echo 'export KUBECONFIG=~/.kube/config' >> ~/.bashrc
+```
+
+### 2. Builder et pusher les images
+
+```bash
+docker build -t degachi/node_backend:latest ./backend
+docker build -t degachi/react_frontend:latest ./frontend
+docker push degachi/node_backend:latest
+docker push degachi/react_frontend:latest
+```
+
+### 3. Appliquer les fichiers de configuration
+
+```bash
+sudo kubectl apply -f k3s/namespace.yaml
+sudo kubectl apply -f k3s/secret.yaml
+sudo kubectl apply -f k3s/mysql/pvc.yaml
+sudo kubectl apply -f k3s/mysql/configmap.yaml
+sudo kubectl apply -f k3s/mysql/deployment.yaml
+sudo kubectl apply -f k3s/backend/deployment.yaml
+sudo kubectl apply -f k3s/frontend/deployment.yaml
+sudo kubectl apply -f k3s/ingress.yaml
+```
+
+### 4. Vérifier le déploiement
+
+```bash
+# Vérifier les pods
+sudo kubectl get pods -n app
+
+# Résultat attendu
+NAME                        READY   STATUS
+mysql-xxxxxxxxx             1/1     Running
+backend-xxxxxxxxx           1/1     Running
+frontend-xxxxxxxxx          1/1     Running
+
+# Vérifier les services
+sudo kubectl get services -n app
+
+# Vérifier l'ingress
+sudo kubectl get ingress -n app
+```
+
+### 5. Accéder à l'application
+
+Ajouter le domaine dans `/etc/hosts` :
+```bash
+echo "<IP-de-ta-VM>  mon-app.local" | sudo tee -a /etc/hosts
+```
+
+Puis ouvrir dans le navigateur :
+http://mon-app.local
+
+### 🔍 Commandes utiles K3s
+
+```bash
+# Voir les logs d'un pod
+sudo kubectl logs -n app <nom-du-pod>
+
+# Décrire un pod en erreur
+sudo kubectl describe pod -n app <nom-du-pod>
+
+# Surveiller les pods en temps réel
+sudo kubectl get pods -n app -w
+
+# Voir toutes les ressources
+sudo kubectl get all -n app
+```
+
+---
 
 ## 📝 Utilisation
 
-1. Ouvrez votre navigateur à l'adresse `http://localhost:3000`.
+1. Ouvrez votre navigateur à l'adresse `http://localhost:3000` (Docker) ou `http://mon-app.local` (K3s).
 2. Remplissez les champs **ID**, **Nom**, **Poste**.
 3. Cliquez sur le bouton **Continuer**.
 4. Une alerte confirme l'envoi des données.
 5. Vérifiez les données en base :
-   ```bash
+```bash
    docker exec -it mysql_db mysql -u user -p
-   ```
-   Mot de passe : `userpassword` (défini dans `docker-compose.yml`)
-   ```sql
+```
+```sql
    USE formulaire_db;
    SELECT * FROM contacts;
-   ```
+```
+
+---
 
 ## ⚙️ Configuration
 
 ### Variables d'environnement
 
-Les paramètres sont définis dans `docker-compose.yml` :
-
-- **MySQL** :
-  - `MYSQL_ROOT_PASSWORD` : mot de passe root
-  - `MYSQL_DATABASE` : nom de la base
-  - `MYSQL_USER` / `MYSQL_PASSWORD` : utilisateur applicatif
-
-- **Backend** :
-  - `DB_HOST` : nom du service MySQL (`db`)
-  - `DB_USER`, `DB_PASSWORD`, `DB_NAME` : identifiants de connexion
+- **MySQL** : `MYSQL_ROOT_PASSWORD`, `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`
+- **Backend** : `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
 
 ### Initialisation de la base de données
-
-Si vous placez un fichier `init.sql` dans le même dossier que `docker-compose.yml`, il sera automatiquement exécuté lors de la première création du conteneur MySQL. Exemple de contenu :
 
 ```sql
 USE formulaire_db;
@@ -131,27 +228,3 @@ CREATE TABLE IF NOT EXISTS contacts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
-
-## 🛑 Arrêt et nettoyage
-
-- **Arrêter les conteneurs** (sans les supprimer) :
-  ```bash
-  docker-compose stop
-  ```
-
-- **Arrêter et supprimer les conteneurs** :
-  ```bash
-  docker-compose down
-  ```
-
-- **Supprimer également les volumes (données)** :
-  ```bash
-  docker-compose down -v
-  ```
-
-
-
-ports:
-  - "3001:80"   # utilise le port 3001 de l'hôte
-```
-
