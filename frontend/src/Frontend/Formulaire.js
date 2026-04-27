@@ -1,146 +1,153 @@
 import React, { useState } from 'react';
 
 const Formulaire = () => {
-  const [formData, setFormData] = useState({ id: '', nom: '', poste: '' });
+  const [formData, setFormData] = useState({ 
+    id: '', 
+    nom: '', 
+    poste: '' 
+  });
   const [isLoading, setIsLoading] = useState(false);
-
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/contact';
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    // Réinitialiser les messages d'erreur/succès quand l'utilisateur tape
+    if (error) setError('');
+    if (success) setSuccess(false);
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setIsLoading(true);
-  try {
-    const response = await fetch('/api/contact', {  // URL relative
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
-    });
-    } catch (error) {
-      console.error('Erreur réseau :', error);
-      alert('Erreur de connexion au serveur');
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    setSuccess(false);
+
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de l\'envoi des données');
+      }
+
+      const result = await response.json();
+      
+      // Succès
+      setSuccess(true);
+      setFormData({ id: '', nom: '', poste: '' }); // Réinitialiser le formulaire
+      
+    } catch (err) {
+      console.error('Erreur :', err);
+      setError('Impossible d\'envoyer le formulaire. Vérifiez votre connexion.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.title}>Formulaire de contact</h2>
-      <form onSubmit={handleSubmit} style={styles.form}>
-        <div style={styles.inputGroup}>
-          <label htmlFor="id" style={styles.label}>ID :</label>
-          <input
-            type="text"
-            id="id"
-            name="id"
-            value={formData.id}
-            onChange={handleChange}
-            style={styles.input}
-            placeholder="Entrez l'ID"
-            required
-          />
+    <div className="min-h-screen bg-slate-950 text-slate-200 flex items-center justify-center p-6">
+      <div className="w-full max-w-md">
+        {/* Titre */}
+        <div className="text-center mb-10">
+          <h1 className="text-4xl font-bold tracking-tight text-white">
+            Nouveau Contact
+          </h1>
+          <p className="text-slate-400 mt-2">Ajoutez un nouveau contact à la liste</p>
         </div>
-        <div style={styles.inputGroup}>
-          <label htmlFor="nom" style={styles.label}>Nom :</label>
-          <input
-            type="text"
-            id="nom"
-            name="nom"
-            value={formData.nom}
-            onChange={handleChange}
-            style={styles.input}
-            placeholder="Entrez le nom"
-            required
-          />
+
+        {/* Carte du formulaire */}
+        <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8 shadow-2xl">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            
+            {/* Champ Identifiant */}
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-2">
+                Identifiant
+              </label>
+              <input
+                type="text"
+                name="id"
+                value={formData.id}
+                onChange={handleChange}
+                placeholder="Entrez l'identifiant"
+                required
+                className="w-full bg-slate-800 border border-slate-600 rounded-2xl px-5 py-4 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all"
+              />
+            </div>
+
+            {/* Champ Nom */}
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-2">
+                Nom complet
+              </label>
+              <input
+                type="text"
+                name="nom"
+                value={formData.nom}
+                onChange={handleChange}
+                placeholder="Entrez le nom"
+                required
+                className="w-full bg-slate-800 border border-slate-600 rounded-2xl px-5 py-4 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all"
+              />
+            </div>
+
+            {/* Champ Poste */}
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-2">
+                Poste / Fonction
+              </label>
+              <input
+                type="text"
+                name="poste"
+                value={formData.poste}
+                onChange={handleChange}
+                placeholder="Entrez le poste"
+                required
+                className="w-full bg-slate-800 border border-slate-600 rounded-2xl px-5 py-4 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all"
+              />
+            </div>
+
+            {/* Message d'erreur */}
+            {error && (
+              <div className="bg-red-950 border border-red-800 text-red-400 px-5 py-3 rounded-2xl text-sm">
+                {error}
+              </div>
+            )}
+
+            {/* Message de succès */}
+            {success && (
+              <div className="bg-emerald-950 border border-emerald-800 text-emerald-400 px-5 py-3 rounded-2xl text-sm">
+                ✅ Contact ajouté avec succès !
+              </div>
+            )}
+
+            {/* Bouton d'envoi */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`w-full py-4 rounded-2xl font-semibold text-lg transition-all duration-200 
+                ${isLoading 
+                  ? 'bg-slate-700 cursor-not-allowed text-slate-400' 
+                  : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-lg shadow-blue-500/30'
+                }`}
+            >
+              {isLoading ? 'Envoi en cours...' : 'Ajouter le contact'}
+            </button>
+          </form>
         </div>
-        <div style={styles.inputGroup}>
-          <label htmlFor="poste" style={styles.label}>Poste :</label>
-          <input
-            type="text"
-            id="poste"
-            name="poste"
-            value={formData.poste}
-            onChange={handleChange}
-            style={styles.input}
-            placeholder="Entrez le poste"
-            required
-          />
-        </div>
-        <button
-          type="submit"
-          style={isLoading ? { ...styles.button, ...styles.buttonDisabled } : styles.button}
-          disabled={isLoading}
-        >
-          {isLoading ? 'Envoi...' : 'Continuer'}
-        </button>
-      </form>
+
+        {/* Info en bas */}
+        <p className="text-center text-slate-500 text-sm mt-8">
+          Application Docker Compose • Formulaire de création
+        </p>
+      </div>
     </div>
   );
-};
-
-const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '100vh',
-    backgroundColor: '#f0f2f5',
-    padding: '20px'
-  },
-  title: {
-    color: '#333',
-    marginBottom: '20px',
-    fontFamily: 'Arial, sans-serif'
-  },
-  form: {
-    backgroundColor: '#fff',
-    padding: '30px',
-    borderRadius: '8px',
-    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-    width: '100%',
-    maxWidth: '400px'
-  },
-  inputGroup: {
-    marginBottom: '20px'
-  },
-  label: {
-    display: 'block',
-    marginBottom: '5px',
-    fontWeight: 'bold',
-    color: '#555',
-    fontFamily: 'Arial, sans-serif'
-  },
-  input: {
-    width: '100%',
-    padding: '10px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    fontSize: '16px',
-    boxSizing: 'border-box',
-    transition: 'border-color 0.3s'
-  },
-  button: {
-    width: '100%',
-    padding: '12px',
-    backgroundColor: '#4CAF50',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    transition: 'background-color 0.3s'
-  },
-  buttonDisabled: {
-    backgroundColor: '#ccc',
-    cursor: 'not-allowed'
-  }
 };
 
 export default Formulaire;

@@ -2,46 +2,56 @@ import React, { useState, useEffect } from 'react';
 
 const ContactList = () => {
   const [contacts, setContacts] = useState([]);
-  const [editingContact, setEditingContact] = useState(null); // contact en cours d'édition
-  const [formData, setFormData] = useState({ id: '', nom: '', poste: '' });
+  const [editingContact, setEditingContact] = useState(null);
+  const [formData, setFormData] = useState({ 
+    id: '', 
+    nom: '', 
+    poste: '' 
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Charger la liste au montage
+  // Charger les contacts au montage
   useEffect(() => {
     fetchContacts();
   }, []);
 
   const fetchContacts = async () => {
+    setIsLoading(true);
     try {
       const response = await fetch('/api/contacts');
-      if (!response.ok) throw new Error('Erreur chargement');
+      if (!response.ok) throw new Error('Erreur lors du chargement');
       const data = await response.json();
       setContacts(data);
+      setError('');
     } catch (err) {
-      setError('Impossible de charger les contacts');
+      setError('Impossible de charger les contacts. Vérifiez votre connexion.');
       console.error(err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Supprimer ce contact ?')) return;
+    if (!window.confirm('Voulez-vous vraiment supprimer ce contact ?')) return;
+
     try {
       const response = await fetch(`/api/contacts/${id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Erreur suppression');
-      // Mettre à jour la liste
-      setContacts(contacts.filter(c => c.id !== id));
+      
+      setContacts(prev => prev.filter(c => c.id !== id));
     } catch (err) {
-      alert('Erreur lors de la suppression');
+      alert('Erreur lors de la suppression du contact');
     }
   };
 
   const handleEdit = (contact) => {
     setEditingContact(contact);
     setFormData({
-      id: contact.identifiant,
-      nom: contact.nom,
-      poste: contact.poste
+      id: contact.identifiant || '',
+      nom: contact.nom || '',
+      poste: contact.poste || ''
     });
   };
 
@@ -53,22 +63,24 @@ const ContactList = () => {
   const handleUpdate = async (e) => {
     e.preventDefault();
     if (!editingContact) return;
-    setIsLoading(true);
+
+    setIsSubmitting(true);
     try {
       const response = await fetch(`/api/contacts/${editingContact.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
+
       if (!response.ok) throw new Error('Erreur mise à jour');
-      // Recharger la liste
-      await fetchContacts();
+
+      await fetchContacts(); // Recharger la liste
       setEditingContact(null);
       setFormData({ id: '', nom: '', poste: '' });
     } catch (err) {
-      alert('Erreur lors de la modification');
+      alert('Erreur lors de la mise à jour du contact');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -77,187 +89,172 @@ const ContactList = () => {
     setFormData({ id: '', nom: '', poste: '' });
   };
 
-  if (error) return <div style={styles.error}>{error}</div>;
+  if (error) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-500 text-xl mb-4">{error}</p>
+          <button
+            onClick={fetchContacts}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.title}>Liste des contacts</h2>
-
-      {/* Formulaire d'édition (caché si aucun contact en édition) */}
-      {editingContact && (
-        <div style={styles.editForm}>
-          <h3>Modifier le contact</h3>
-          <form onSubmit={handleUpdate}>
-            <div style={styles.inputGroup}>
-              <label>ID :</label>
-              <input
-                type="text"
-                name="id"
-                value={formData.id}
-                onChange={handleChange}
-                required
-                style={styles.input}
-              />
-            </div>
-            <div style={styles.inputGroup}>
-              <label>Nom :</label>
-              <input
-                type="text"
-                name="nom"
-                value={formData.nom}
-                onChange={handleChange}
-                required
-                style={styles.input}
-              />
-            </div>
-            <div style={styles.inputGroup}>
-              <label>Poste :</label>
-              <input
-                type="text"
-                name="poste"
-                value={formData.poste}
-                onChange={handleChange}
-                required
-                style={styles.input}
-              />
-            </div>
-            <div style={styles.buttonGroup}>
-              <button type="submit" style={styles.button} disabled={isLoading}>
-                {isLoading ? 'Mise à jour...' : 'Mettre à jour'}
-              </button>
-              <button type="button" onClick={cancelEdit} style={styles.buttonCancel}>
-                Annuler
-              </button>
-            </div>
-          </form>
+    <div className="min-h-screen bg-slate-950 text-slate-200 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-4xl font-bold text-white tracking-tight">
+              Gestion des Contacts
+            </h1>
+            <p className="text-slate-400 mt-1">Liste complète de vos contacts</p>
+          </div>
+          <button
+            onClick={fetchContacts}
+            disabled={isLoading}
+            className="px-5 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center gap-2 transition"
+          >
+            <span>↻</span> Actualiser
+          </button>
         </div>
-      )}
 
-      {/* Tableau des contacts */}
-      <table style={styles.table}>
-        <thead>
-          <tr>
-            <th>ID (auto)</th>
-            <th>Identifiant</th>
-            <th>Nom</th>
-            <th>Poste</th>
-            <th>Date</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {contacts.map(contact => (
-            <tr key={contact.id}>
-              <td>{contact.id}</td>
-              <td>{contact.identifiant}</td>
-              <td>{contact.nom}</td>
-              <td>{contact.poste}</td>
-              <td>{new Date(contact.created_at).toLocaleString()}</td>
-              <td>
+        {/* Formulaire d'édition */}
+        {editingContact && (
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-8 mb-10 shadow-xl">
+            <h3 className="text-2xl font-semibold mb-6 text-white">Modifier le contact</h3>
+            
+            <form onSubmit={handleUpdate} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Identifiant</label>
+                  <input
+                    type="text"
+                    name="id"
+                    value={formData.id}
+                    onChange={handleChange}
+                    className="w-full bg-slate-800 border border-slate-600 rounded-xl px-5 py-3 focus:outline-none focus:border-blue-500 transition"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Nom complet</label>
+                  <input
+                    type="text"
+                    name="nom"
+                    value={formData.nom}
+                    onChange={handleChange}
+                    className="w-full bg-slate-800 border border-slate-600 rounded-xl px-5 py-3 focus:outline-none focus:border-blue-500 transition"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Poste / Fonction</label>
+                  <input
+                    type="text"
+                    name="poste"
+                    value={formData.poste}
+                    onChange={handleChange}
+                    className="w-full bg-slate-800 border border-slate-600 rounded-xl px-5 py-3 focus:outline-none focus:border-blue-500 transition"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-4">
                 <button
-                  onClick={() => handleEdit(contact)}
-                  style={styles.editButton}
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-800 text-white font-medium py-4 rounded-xl transition"
                 >
-                  Modifier
+                  {isSubmitting ? 'Mise à jour en cours...' : 'Enregistrer les modifications'}
                 </button>
                 <button
-                  onClick={() => handleDelete(contact.id)}
-                  style={styles.deleteButton}
+                  type="button"
+                  onClick={cancelEdit}
+                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-medium py-4 rounded-xl transition"
                 >
-                  Supprimer
+                  Annuler
                 </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Tableau des contacts */}
+        <div className="bg-slate-900 rounded-3xl overflow-hidden border border-slate-700 shadow-2xl">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-slate-800 border-b border-slate-700">
+                  <th className="px-6 py-5 text-left text-sm font-medium text-slate-400">ID</th>
+                  <th className="px-6 py-5 text-left text-sm font-medium text-slate-400">Identifiant</th>
+                  <th className="px-6 py-5 text-left text-sm font-medium text-slate-400">Nom</th>
+                  <th className="px-6 py-5 text-left text-sm font-medium text-slate-400">Poste</th>
+                  <th className="px-6 py-5 text-left text-sm font-medium text-slate-400">Date de création</th>
+                  <th className="px-6 py-5 text-center text-sm font-medium text-slate-400">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700">
+                {contacts.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="text-center py-16 text-slate-400">
+                      Aucun contact trouvé
+                    </td>
+                  </tr>
+                ) : (
+                  contacts.map((contact) => (
+                    <tr key={contact.id} className="hover:bg-slate-800/50 transition">
+                      <td className="px-6 py-5">{contact.id}</td>
+                      <td className="px-6 py-5 font-medium">{contact.identifiant}</td>
+                      <td className="px-6 py-5">{contact.nom}</td>
+                      <td className="px-6 py-5 text-slate-300">{contact.poste}</td>
+                      <td className="px-6 py-5 text-sm text-slate-400">
+                        {new Date(contact.created_at).toLocaleDateString('fr-FR', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="flex justify-center gap-3">
+                          <button
+                            onClick={() => handleEdit(contact)}
+                            className="px-5 py-2 bg-blue-600 hover:bg-blue-700 rounded-xl text-sm font-medium transition"
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            onClick={() => handleDelete(contact.id)}
+                            className="px-5 py-2 bg-red-600 hover:bg-red-700 rounded-xl text-sm font-medium transition"
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Footer info */}
+        <p className="text-center text-slate-500 text-sm mt-8">
+          {contacts.length} contact{contacts.length > 1 ? 's' : ''} • Application Docker Compose
+        </p>
+      </div>
     </div>
   );
-};
-
-// Styles (vous pouvez les adapter)
-const styles = {
-  container: {
-    padding: '20px',
-    fontFamily: 'Arial, sans-serif'
-  },
-  title: {
-    color: '#333',
-    textAlign: 'center'
-  },
-  editForm: {
-    backgroundColor: '#f9f9f9',
-    padding: '20px',
-    borderRadius: '8px',
-    marginBottom: '20px',
-    border: '1px solid #ddd'
-  },
-  inputGroup: {
-    marginBottom: '15px'
-  },
-  input: {
-    width: '100%',
-    padding: '8px',
-    border: '1px solid #ccc',
-    borderRadius: '4px'
-  },
-  buttonGroup: {
-    display: 'flex',
-    gap: '10px'
-  },
-  button: {
-    padding: '10px 20px',
-    backgroundColor: '#4CAF50',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer'
-  },
-  buttonCancel: {
-    padding: '10px 20px',
-    backgroundColor: '#f44336',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer'
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    marginTop: '20px'
-  },
-  th: {
-    backgroundColor: '#f2f2f2',
-    padding: '10px',
-    textAlign: 'left',
-    borderBottom: '2px solid #ddd'
-  },
-  td: {
-    padding: '10px',
-    borderBottom: '1px solid #ddd'
-  },
-  editButton: {
-    padding: '5px 10px',
-    backgroundColor: '#2196F3',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    marginRight: '5px',
-    cursor: 'pointer'
-  },
-  deleteButton: {
-    padding: '5px 10px',
-    backgroundColor: '#f44336',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer'
-  },
-  error: {
-    color: 'red',
-    textAlign: 'center',
-    marginTop: '20px'
-  }
 };
 
 export default ContactList;
